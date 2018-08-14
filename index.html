@@ -126,7 +126,8 @@ function cleanRTFFile(file){
 
             // Remove text prior to title.
             while(i < lines.length && (lines[i].match(/\\b[\\\s]/) == null || lines[i].match(/\\qc /) !== null)){
-                if(lines[i].match(/\\qc /) === null && lines[i].match(/.*\\f0 [A-Z][A-Z \-]+:}/) === null &&
+                if(lines[i].match(/\\qc .*\\f0 \w/) === null && 
+                        lines[i].match(/.*\\f0 [A-Z][A-Z \-]+:}/) === null &&
                         lines[i].match(/\\f0 [^\\]*$/) == null){
                     output.push(lines[i]);
                     output.push('\n');
@@ -143,15 +144,20 @@ function cleanRTFFile(file){
             //output.push('\\par\n');
 
             // Read through the rest of the document.
-            while(i < lines.length && lines[i].match(/\\sect /) === null){
+            while(i < lines.length && lines[i].match(/\\f0 LOAD-DATE:/) === null){
                 if(lines[i].match(/\\qc /) === null &&
                         lines[i].match(/\\b[\\\s]/) === null &&
                         lines[i].match(/\\f0 Copyright .* All Rights Reserved/) == null &&
                         lines[i].match(/\\f0 All Rights Reserved/) == null &&
+                        lines[i].match(/\\f0 [\w.]+@[\w.]*$/) == null &&
                         (lines[i] !== '\\par ' || output[output.length-2] !== '\\par ')){
                     output.push(lines[i]);
                     output.push('\n');
                 }
+                i++;
+            }
+
+            while(i < lines.length && lines[i].match(/\\sect /) === null){
                 i++;
             }
         }
