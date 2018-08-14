@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"> 
 <!--
 Created by Hank Feild (hfeild@endicott.edu) on 13-Aug-2018.
  
@@ -27,9 +30,6 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 -->
-<html>
-<head>
-<meta charset="UTF-8"> 
 <style>
 #input-area {
     font-size: 20pt;
@@ -47,7 +47,7 @@ function process(){
     // Read in input files.
     var i;
     for(i = 0; i < document.getElementById('input-files').files.length; i++){
-        var file = document.getElementById('input-files').files[0];
+        var file = document.getElementById('input-files').files[i];
         if(file.name.endsWith('.rtf')){
             cleanRTFFile(file);
         } else {
@@ -105,7 +105,61 @@ function cleanPlainTextFile(file){
 }
 
 function cleanRTFFile(file){
+    var reader = new FileReader();
+    reader.onload = function(e){
+        console.log(e);
+        var lines = e.target.result.replace(/\r\n?/g, '\n').replace('/\n+/g', '\n').split('\n');
+        // var lines = e.target.result.split('\n');
+        var output = [];
+        var i = 0;
+        while(i < lines.length){
+            // if(lines[i].match(/\\qc /) === null &&
+            //         lines[i].match(/.*\\f0 [A-Z][A-Z \-]+:}/) === null &&
+            //         lines[i].match(/.*\\f0 Copyright .* All Rights Reserved/) == null &&
+            //         lines[i].match(/.*\\f0 All Rights Reserved/) == null &&
+            //         (lines[i] !== '\\par' || lines[i-1] !== '\\par')){
+            //     output.push(lines[i]);
+            //     output.push('\n');
+            // }
+            // i++;
 
+
+            // Remove text prior to title.
+            while(i < lines.length && (lines[i].match(/\\b[\\\s]/) == null || lines[i].match(/\\qc /) !== null)){
+                if(lines[i].match(/\\qc /) === null && lines[i].match(/.*\\f0 [A-Z][A-Z \-]+:}/) === null &&
+                        lines[i].match(/\\f0 [^\\]*$/) == null){
+                    output.push(lines[i]);
+                    output.push('\n');
+                }
+                i++;
+            }
+
+            // Add the title to the output (may be multiple lines).
+            while(i < lines.length && lines[i] !== '\\par '){
+                output.push(lines[i]);
+                output.push('\n');
+                i++;
+            }
+            //output.push('\\par\n');
+
+            // Read through the rest of the document.
+            while(i < lines.length && lines[i].match(/\\sect /) === null){
+                if(lines[i].match(/\\qc /) === null &&
+                        lines[i].match(/\\b[\\\s]/) === null &&
+                        lines[i].match(/\\f0 Copyright .* All Rights Reserved/) == null &&
+                        lines[i].match(/\\f0 All Rights Reserved/) == null &&
+                        (lines[i] !== '\\par ' || output[output.length-2] !== '\\par ')){
+                    output.push(lines[i]);
+                    output.push('\n');
+                }
+                i++;
+            }
+        }
+
+        var outputFile = new File(output, file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x; }), {type: "application/rtf"});
+        saveAs(outputFile);
+    };
+    reader.readAsText(file);
 }
 
 </script>
