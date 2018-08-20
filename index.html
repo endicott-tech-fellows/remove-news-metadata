@@ -39,24 +39,62 @@ SOFTWARE.
     font-size: 14pt;
 }
 </style>
+<script src="jszip.min.js"></script>
 <script src="FileSaver.js"></script>
 <script>
 
 
 function process(){
     // Read in input files.
-    var i;
-    for(i = 0; i < document.getElementById('input-files').files.length; i++){
+    var i = 0;
+    var totalFiles = document.getElementById('input-files').files.length;
+    var zip = new JSZip();
+    var zipFolder = zip.folder('cleaned-files');
+
+    // Called for each file that's processed. Saves the previously processed
+    // file before processing the next. Handles when to zip and when not to.
+    var processNextFile = function(output, filename, filetype){
+        
+        // Save the output of the previously processed file (if exists).
+        if(i > 0){
+            // Save if this is the only file.
+            if(totalFiles === 1){
+                saveAs(new File(output, filename, filetype));
+
+            // Add it to the zip file if there are more than one.
+            } else {
+                zipFolder.file(filename, output.join('\n'));
+
+                // Save the zip if this is the last file.
+                if(i === totalFiles-1){
+                    zip.generateAsync({type:"blob"})
+                        .then(function(content) {
+                            saveAs(content, "cleaned-files.zip");
+                        });
+                }
+            }
+        }
+
         var file = document.getElementById('input-files').files[i];
         if(file.name.endsWith('.rtf')){
-            cleanRTFFile(file);
+            cleanRTFFile(file, processNextFile);
         } else {
-            cleanPlainTextFile(file);
+            cleanPlainTextFile(file, processNextFile);
         }
-    }
+        i++;
+    };
+
+    processNextFile();
 }
 
-function cleanPlainTextFile(file){
+/**
+ * Extracts the title and body of news articles from a LexusNexus plain text
+ * archive. 
+ *
+ * @param file The file to parse.
+ * @param callback The function to pass the extracted text to.
+ */
+function cleanPlainTextFile(file, callback){
     var reader = new FileReader();
     reader.onload = function(e){
         console.log(e);
@@ -98,13 +136,25 @@ function cleanPlainTextFile(file){
             output.push('\n\n\n\n');
         }
 
-        var outputFile = new File(output, file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x; }), {type: "text/plain;charset=utf-8"});
-        saveAs(outputFile);
+        // var outputFile = new File(output, 
+        //     file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x;}), 
+        //     {type: "text/plain;charset=utf-8"});
+        // callback(outputFile);
+        callback(output,
+            file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x;}), 
+            {type: "text/plain;charset=utf-8"}
+        );
     };
     reader.readAsText(file);
 }
 
-function cleanRTFFile(file){
+/**
+ * Extracts the title and body of news articles from a LexusNexus RTF archive. 
+ *
+ * @param file The file to parse.
+ * @param callback The function to pass the extracted text to.
+ */
+function cleanRTFFile(file, callback){
     var reader = new FileReader();
     reader.onload = function(e){
         console.log(e);
@@ -113,16 +163,6 @@ function cleanRTFFile(file){
         var output = [];
         var i = 0;
         while(i < lines.length){
-            // if(lines[i].match(/\\qc /) === null &&
-            //         lines[i].match(/.*\\f0 [A-Z][A-Z \-]+:}/) === null &&
-            //         lines[i].match(/.*\\f0 Copyright .* All Rights Reserved/) == null &&
-            //         lines[i].match(/.*\\f0 All Rights Reserved/) == null &&
-            //         (lines[i] !== '\\par' || lines[i-1] !== '\\par')){
-            //     output.push(lines[i]);
-            //     output.push('\n');
-            // }
-            // i++;
-
 
             // Remove text prior to title.
             while(i < lines.length && (lines[i].match(/\\b[\\\s]/) == null || lines[i].match(/\\qc /) !== null)){
@@ -162,8 +202,14 @@ function cleanRTFFile(file){
             }
         }
 
-        var outputFile = new File(output, file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x; }), {type: "application/rtf"});
-        saveAs(outputFile);
+        // var outputFile = new File(output, 
+        //     file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x;}), 
+        //     {type: "application/rtf"});
+        //callback(outputFile);
+        callback(output, 
+            file.name.replace(/(\.\w+)$/, function(x){return '-NoMetadata'+x;}),
+            {type: "application/rtf"}
+        );
     };
     reader.readAsText(file);
 }
@@ -184,14 +230,17 @@ function cleanRTFFile(file){
 
 <h2>Input</h2> 
 <p>
-    A bulk LexusNexus news article file in either rich text format (RTF) or plain text.
+    A bulk LexusNexus news article file in either rich text format (RTF) or 
+    plain text. More than one file may be selected and can be mixed formats
+    (some plain text and some RTF files).
 </p>
 
 <h2>Output</h2>
 <p>
-    The output looks like the input, but with all non-title metadata removed from the header and footer of each article.
+    The output looks like the input, but with all non-title metadata removed 
+    from the header and footer of each article. If more than one input file
+    is provided, the results are placed in a zip file named "cleaned-files.zip".
 </p>
-
 
 
 </body>
