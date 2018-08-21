@@ -1,6 +1,6 @@
 # Remove News Metadata
 This strips out header and footer information from a bulk download of news 
-stories from LexusNexus.
+stories from LexisNexis.
 
 ## To begin
 Open `index.html` in any browser. Follow the instructions on the page.
