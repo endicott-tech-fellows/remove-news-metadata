@@ -265,12 +265,18 @@ function cleanRTFFile(file, callback){
             // Process the lines.
             var output = [];
             var inBody = false;
+
+            var bodyEnders = {
+                'End of Document': 1,
+                'Graphic': 1,
+                'Classification': 1,
+                ' ': 1
+            };
     
             for(i = 0; i < lines.length; i++){
                 if(lines[i] == 'Body'){
                     inBody = true;
-                } else if(lines[i] == 'Graphic' || lines[i] == ' ' || 
-                        lines[i] == 'End of Document'){
+                } else if(bodyEnders[lines[i]] !== undefined){
                     if(inBody){
                         output.push('\n\n');
                     }
@@ -284,8 +290,6 @@ function cleanRTFFile(file, callback){
                     output.push(lines[i] +'\n');
                 }
             }
-
-            console.log(lines);
 
             callback(output,
                 file.name.replace(/\.docx$/i, '-NoMetadata.txt'), 
