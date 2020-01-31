@@ -75,13 +75,20 @@ function process(){
             }
         }
 
-        var file = document.getElementById('input-files').files[i];
-        if(file.name.endsWith('.rtf')){
-            cleanRTFFile(file, processNextFile);
-        } else {
-            cleanPlainTextFile(file, processNextFile);
+        if(i < document.getElementById('input-files').files.length){
+            var file = document.getElementById('input-files').files[i];
+            var lowercaseName = file.name.toLowerCase();
+            // if(lowercaseName.endsWith('.rtf')){
+            //     cleanRTFFile(file, processNextFile);
+            // } else 
+            
+            if(lowercaseName.endsWith('.docx')) {
+                cleanWordFile(file, processNextFile);
+            } else {
+                cleanPlainTextFile(file, processNextFile);
+            } 
+            i++;
         }
-        i++;
     };
 
     processNextFile();
@@ -214,6 +221,86 @@ function cleanRTFFile(file, callback){
     reader.readAsText(file);
 }
 
+/**
+ * Extracts the title and body of news articles from a LexisNexis RTF archive. 
+ *
+ * @param file The file to parse.
+ * @param callback The function to pass the extracted text to.
+ */
+ function cleanWordFile(file, callback){
+    JSZip.loadAsync(file).then(function(zip){
+        zip.file('word/document.xml').async("string").then(function(content){
+
+            // Extract the lines from the word document.
+            if (window.DOMParser) {
+                parser = new DOMParser();
+                xmlDoc = parser.parseFromString(content, "text/xml");
+            }
+            else // Internet Explorer
+            {
+                xmlDoc = new ActiveXObject("Microsoft.XMLDOM");
+                xmlDoc.async = false;
+                xmlDoc.loadXML(content);
+            }
+
+            var lines = [];
+            var paragraphElms = xmlDoc.getElementsByTagName("w:p");
+            var textElms;
+            var i,j;
+            for(i = 0; i < paragraphElms.length; i++){
+                var words = [];
+                textElms = paragraphElms[i].getElementsByTagName("w:t");
+                for(j = 0; j < textElms.length; j++){
+                    var textElm = textElms[j];
+                    if(textElm.textContent){
+                        words.push(textElm.textContent);
+                    }
+                }
+                if(words.length > 0){
+                    lines.push(words.join('').trim());
+                }
+                words = [];
+            }
+
+            // Process the lines.
+            var output = [];
+            var inBody = false;
+    
+            for(i = 0; i < lines.length; i++){
+                if(lines[i] == 'Body'){
+                    inBody = true;
+                } else if(lines[i] == 'Graphic' || lines[i] == ' ' || 
+                        lines[i] == 'End of Document'){
+                    if(inBody){
+                        output.push('\n\n');
+                    }
+                    inBody = false;
+                } else if(inBody){
+                    if(!lines[i].startsWith('http://') && 
+                            !lines[i].startsWith('Load-Date:')){
+                        output.push(lines[i] +'\n');
+                    }
+                } else if(i == 0 || lines[i-1]=="End of Document") {
+                    output.push(lines[i] +'\n');
+                }
+            }
+
+            console.log(lines);
+
+            callback(output,
+                file.name.replace(/\.docx$/i, '-NoMetadata.txt'), 
+                {type: "text/plain;charset=utf-8"}
+            );
+
+
+        }, function(message){alert('Error processing file: '+ message);});
+
+
+    });
+
+    
+}
+
 </script>
 </head>
 <body>
@@ -230,9 +317,9 @@ function cleanRTFFile(file, callback){
 
 <h2>Input</h2> 
 <p>
-    A bulk LexisNexis news article file in either rich text format (RTF) or 
-    plain text. More than one file may be selected and can be mixed formats
-    (some plain text and some RTF files).
+    A bulk LexisNexis news article file in either Word (.docx) or 
+    plain text formats. More than one file may be selected and can be mixed formats
+    (some plain text and some .docx files).
 </p>
 
 <h2>Output</h2>
